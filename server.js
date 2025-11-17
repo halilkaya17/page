@@ -2,6 +2,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const path = require('path');
 require('dotenv').config();
 
 const app = express();
@@ -11,6 +12,14 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' })); // Fotoğraflar için büyük limit
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
+// Static files (HTML, CSS, JS, images)
+app.use(express.static(path.join(__dirname)));
+
+// Ana sayfa route
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'defter-pageflip.html'));
+});
 
 // MongoDB Bağlantısı
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://voiceAI:halilkaya@voiceapi.kliyb.mongodb.net/page?retryWrites=true&w=majority&appName=voiceApi';
