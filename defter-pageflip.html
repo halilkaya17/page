@@ -112,6 +112,68 @@
             transform: scale(0.95);
         }
 
+        .btn.active {
+            background: #233977 !important;
+            color: #ffffff !important;
+        }
+
+        .pen-thickness-control {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            margin-left: 15px;
+            padding: 8px 15px;
+            background: rgba(74, 74, 74, 0.3);
+            border-radius: 8px;
+        }
+
+        .pen-thickness-control.show {
+            display: flex;
+        }
+
+        .pen-thickness-control label {
+            font-size: 14px;
+            color: #333333;
+            white-space: nowrap;
+        }
+
+        .pen-thickness-slider {
+            width: 120px;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: #d3d3d3;
+            outline: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+
+        .pen-thickness-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #233977;
+            cursor: pointer;
+            border-radius: 50%;
+        }
+
+        .pen-thickness-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #233977;
+            cursor: pointer;
+            border-radius: 50%;
+            border: none;
+        }
+
+        .pen-thickness-value {
+            font-size: 14px;
+            color: #333333;
+            font-weight: 600;
+            min-width: 30px;
+        }
+
         .btn-save-text {
             width: auto !important;
             padding: 12px 32px !important;
@@ -597,9 +659,15 @@
 
     <div class="controls">
         <div class="controls-left">
+            <button class="btn" onclick="sayfaGeriGit()" title="Önceki Sayfa">
+                <i class="fas fa-chevron-left"></i>
+            </button>
             <span class="page-info">
                 Sayfa: <span id="current-page">1</span> / <span id="total-pages">1</span>
             </span>
+            <button class="btn" onclick="sayfaIleriGit()" title="Sonraki Sayfa">
+                <i class="fas fa-chevron-right"></i>
+            </button>
         </div>
         <div class="controls-center">
             <button class="btn btn-save-text" onclick="sayfaTemizle()" title="İçeriği Temizle">
@@ -610,7 +678,7 @@
             </button>
         </div>
         <div class="controls-right">
-            <button class="btn btn-keyboard" id="global-keyboard-btn" onclick="globalModDegistir('keyboard')"
+            <button class="btn btn-keyboard active" id="global-keyboard-btn" onclick="globalModDegistir('keyboard')"
                 title="Klavye Modu">
                 <i class="fas fa-keyboard"></i>
             </button>
@@ -618,6 +686,15 @@
                 title="El Yazısı Modu">
                 <i class="fas fa-pen"></i>
             </button>
+            <div class="pen-thickness-control" id="penThicknessControl">
+                <label>Kalem Kalınlığı:</label>
+                <input type="range" class="pen-thickness-slider" id="penThicknessSlider" min="1" max="10" value="2"
+                    step="0.5">
+                <span class="pen-thickness-value" id="penThicknessValue">2</span>
+                <button class="btn" onclick="geriAl()" title="Geri Al (Son çizimi sil)">
+                    <i class="fas fa-undo"></i>
+                </button>
+            </div>
         </div>
     </div>
 
@@ -668,6 +745,8 @@
         let sayfalar = [];
         let mevcutSayfa = 0;
         let cameraStream = null;
+        let globalYaziModu = 'keyboard'; // 'keyboard' veya 'handwriting'
+        let kalemKalinligi = 2; // Varsayılan kalem kalınlığı
         let fotografCekilenSayfa = null;
         let fotografCekilirkenSayfa = null; // Fotoğraf çekilirken hangi sayfadayız
 
@@ -680,6 +759,7 @@
                 if (result.success && result.data.length > 0) {
                     // MongoDB'den sayfalar geldi
                     sayfalar = result.data.map(page => ({
+                        pageId: page._id || page.id,  // MongoDB ID'sini sakla
                         metin: page.metin || '',
                         foto: page.foto || '',
                         canvas: page.canvas || '',
@@ -688,6 +768,7 @@
 
                     // Yeni boş sayfa ekle (3. sayfa)
                     sayfalar.push({
+                        pageId: null,
                         metin: '',
                         foto: '',
                         canvas: '',
@@ -699,6 +780,7 @@
                     // Hiç sayfa yok, varsayılan ekle
                     sayfalar = [
                         {
+                            pageId: null,
                             metin: '',
                             foto: '',
                             canvas: '',
@@ -712,6 +794,7 @@
                 // Hata durumunda boş sayfa
                 sayfalar = [
                     {
+                        pageId: null,
                         metin: '',
                         foto: '',
                         canvas: '',
@@ -756,9 +839,7 @@
                     sayfaMetni = icerik.metin || '';
                     sayfaFotografi = icerik.foto || '';
                     sayfaCanvas = icerik.canvas || '';
-                    if (sayfaFotografi) {
-                        console.log('Sayfa oluşturuluyor - içerik index:', icerikIndex, 'Fotoğraf var, uzunluk:', sayfaFotografi.length);
-                    }
+                    console.log('📄 Sayfa', icerikIndex, '- Metin:', sayfaMetni ? 'Var' : 'Yok', '| Foto:', sayfaFotografi ? 'Var' : 'Yok', '| Canvas:', sayfaCanvas ? `Var (${sayfaCanvas.substring(0, 30)}...)` : 'Yok');
                 } else {
                     sayfaMetni = icerik || '';
                 }
@@ -768,6 +849,27 @@
                     ? `<img src="${sayfaFotografi}" alt="Fotoğraf">`
                     : `<div class="photo-placeholder"><div class="photo-camera-icon"><i class="fas fa-camera"></i></div><div>Fotoğraf çek</div></div>`;
 
+                // Display ayarla: Eğer canvas verisi varsa canvas göster, metin varsa text göster
+                let textDisplay = 'block';
+                let canvasDisplay = 'none';
+
+                if (sayfaCanvas) {
+                    // Canvas verisi varsa canvas'ı göster
+                    textDisplay = 'none';
+                    canvasDisplay = 'block';
+                    console.log('🎨 Sayfa', icerikIndex, '- Canvas gösterilecek');
+                } else if (sayfaMetni) {
+                    // Sadece metin varsa text'i göster
+                    textDisplay = 'block';
+                    canvasDisplay = 'none';
+                    console.log('📝 Sayfa', icerikIndex, '- Metin gösterilecek');
+                } else {
+                    // İkisi de yoksa global moda göre
+                    textDisplay = globalYaziModu === 'keyboard' ? 'block' : 'none';
+                    canvasDisplay = globalYaziModu === 'handwriting' ? 'block' : 'none';
+                    console.log('🆕 Sayfa', icerikIndex, '- Boş sayfa, mod:', globalYaziModu);
+                }
+
                 sagSayfaDiv.innerHTML = `
                     <div class="page-right-content">
                         <div class="photo-area">
@@ -776,8 +878,8 @@
                             </div>
                         </div>
                         <div class="page-content" id="content-${icerikIndex}">
-                            <textarea class="page-content-editable" id="text-${icerikIndex}" onblur="icerikKaydet(${icerikIndex})">${escapeHtml(sayfaMetni)}</textarea>
-                            <canvas class="handwriting-canvas" id="canvas-${icerikIndex}" style="display: none;"></canvas>
+                            <textarea class="page-content-editable" id="text-${icerikIndex}" onblur="icerikKaydet(${icerikIndex})" style="display: ${textDisplay};">${escapeHtml(sayfaMetni)}</textarea>
+                            <canvas class="handwriting-canvas" id="canvas-${icerikIndex}" style="display: ${canvasDisplay};"></canvas>
                         </div>
                     </div>
                     <div class="page-number">${sayfaNumarasi}</div>
@@ -786,7 +888,10 @@
 
                 // Canvas'ı başlat ve varsa canvas verisini yükle
                 setTimeout(() => {
-                    elYazisiBaslat(icerikIndex, sayfaCanvas);
+                    // Canvas verisi varsa veya el yazısı modundaysa canvas'ı başlat
+                    if (sayfaCanvas || globalYaziModu === 'handwriting') {
+                        elYazisiBaslat(icerikIndex, sayfaCanvas);
+                    }
 
                     // Textarea'ya touch event ekle (mobil için)
                     const textEl = document.getElementById(`text-${icerikIndex}`);
@@ -802,7 +907,7 @@
             // PageFlip'i başlat (2 sayfa yan yana)
             pageFlip = new St.PageFlip(bookContainer, {
                 width: 800,  // Tek sayfa genişliği
-                height: 1000, // Sayfa yüksekliği (uzatıldı)
+                height: 900, // Sayfa yüksekliği (uzatıldı)
                 size: 'fixed',
                 minWidth: 315,
                 maxWidth: 1200,
@@ -844,6 +949,19 @@
 
             document.getElementById('current-page').textContent = gosterilecekSayfa;
             document.getElementById('total-pages').textContent = toplamSayfa;
+        }
+
+        // Sayfa navigasyon fonksiyonları
+        function sayfaGeriGit() {
+            if (pageFlip && mevcutSayfa > 0) {
+                pageFlip.flipPrev();
+            }
+        }
+
+        function sayfaIleriGit() {
+            if (pageFlip) {
+                pageFlip.flipNext();
+            }
         }
 
         // HTML karakterlerini escape et
@@ -996,7 +1114,7 @@
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
-                        sayfaNo: icerikIndex,
+                        pageId: sayfaData.pageId || null,  // Var olan sayfa için ID, yeni sayfa için null
                         metin: sayfaData.metin || '',
                         foto: sayfaData.foto || '',
                         canvas: sayfaData.canvas || '',
@@ -1009,8 +1127,14 @@
                 if (result.success) {
                     mesajGoster('Başarıyla Kaydedildi!');
 
+                    // Backend'den dönen pageId'yi kaydet
+                    if (result.data && result.data.id) {
+                        sayfalar[icerikIndex].pageId = result.data.id;
+                    }
+
                     // Yeni boş sayfa oluştur
                     sayfalar.push({
+                        pageId: null,  // Yeni sayfa için ID yok
                         metin: '',
                         foto: '',
                         canvas: '',
@@ -1055,6 +1179,7 @@
 
             // Yeni boş sayfa oluştur
             sayfalar.push({
+                pageId: null,
                 metin: '',
                 foto: '',
                 canvas: '',
@@ -1284,31 +1409,48 @@
             const sonSayfaPageFlipIndex = sonSayfaIndex * 2 + 1; // Sağ sayfa
 
             defteriOlustur(sonSayfaPageFlipIndex); // Son sayfadan aç
+
+            // Kalem kalınlığı slider'ı için event listener
+            const penThicknessSlider = document.getElementById('penThicknessSlider');
+            const penThicknessValue = document.getElementById('penThicknessValue');
+
+            penThicknessSlider.addEventListener('input', function () {
+                kalemKalinligi = parseFloat(this.value);
+                penThicknessValue.textContent = kalemKalinligi;
+
+                // Tüm canvas'ların lineWidth'ini güncelle
+                document.querySelectorAll('.handwriting-canvas').forEach(canvas => {
+                    const ctx = canvas.getContext('2d');
+                    ctx.lineWidth = kalemKalinligi;
+                });
+            });
         });
 
         // Global mod değiştir (alt butonlardan)
         function globalModDegistir(mod) {
-            // Mevcut sayfanın içerik index'ini bul
-            const icerikIndex = Math.floor(mevcutSayfa / 2);
+            // Global modu değiştir
+            globalYaziModu = mod;
 
-            // Eğer sol sayfadaysa (çift index), sağ sayfaya geç
-            if (mevcutSayfa % 2 !== 0) {
-                return;
-            }
-
-            // Mod değiştir
-            modDegistir(icerikIndex, mod);
-
-            // Global butonları güncelle
+            // Butonları güncelle
             const globalKeyboardBtn = document.getElementById('global-keyboard-btn');
             const globalHandwritingBtn = document.getElementById('global-handwriting-btn');
+            const penThicknessControl = document.getElementById('penThicknessControl');
 
+            // Active class'ı ayarla
             if (mod === 'keyboard') {
-                globalKeyboardBtn.style.background = '#333333';
-                globalHandwritingBtn.style.background = '#4a4a4a';
+                globalKeyboardBtn.classList.add('active');
+                globalHandwritingBtn.classList.remove('active');
+                penThicknessControl.classList.remove('show');
             } else {
-                globalKeyboardBtn.style.background = '#4a4a4a';
-                globalHandwritingBtn.style.background = '#333333';
+                globalKeyboardBtn.classList.remove('active');
+                globalHandwritingBtn.classList.add('active');
+                penThicknessControl.classList.add('show');
+            }
+
+            // Mevcut sayfanın mod'unu güncelle
+            const icerikIndex = Math.floor(mevcutSayfa / 2);
+            if (mevcutSayfa % 2 === 0) { // Sadece sağ sayfalarda
+                modDegistir(icerikIndex, mod);
             }
         }
 
@@ -1323,23 +1465,19 @@
             const textEl = document.getElementById(`text-${icerikIndex}`);
             const canvasEl = document.getElementById(`canvas-${icerikIndex}`);
 
-            // Global butonları güncelle
-            const globalKeyboardBtn = document.getElementById('global-keyboard-btn');
-            const globalHandwritingBtn = document.getElementById('global-handwriting-btn');
+            if (!textEl || !canvasEl) return;
 
             if (mod === 'keyboard') {
                 // Klavye modu
                 textEl.style.display = 'block';
                 canvasEl.style.display = 'none';
-                if (globalKeyboardBtn) globalKeyboardBtn.style.background = '#333333';
-                if (globalHandwritingBtn) globalHandwritingBtn.style.background = '#4a4a4a';
+                textEl.disabled = false;
                 setTimeout(() => textEl.focus(), 100);
             } else {
                 // El yazısı modu
                 textEl.style.display = 'none';
                 canvasEl.style.display = 'block';
-                if (globalKeyboardBtn) globalKeyboardBtn.style.background = '#4a4a4a';
-                if (globalHandwritingBtn) globalHandwritingBtn.style.background = '#333333';
+                textEl.disabled = true;
 
                 // Canvas verisini al
                 let canvasData = '';
@@ -1355,18 +1493,82 @@
         const canvasContexts = {};
         const isDrawing = {};
         const canvasInitialized = {}; // Canvas'ın başlatılıp başlatılmadığını takip et
+        const canvasHistory = {}; // Her canvas için çizim geçmişi
 
-        function elYazisiBaslat(icerikIndex, canvasData = '') {
+        // Canvas state'ini kaydet (geri alma için)
+        function saveCanvasState(icerikIndex) {
             const canvas = document.getElementById(`canvas-${icerikIndex}`);
             if (!canvas) return;
 
+            if (!canvasHistory[icerikIndex]) {
+                canvasHistory[icerikIndex] = [];
+            }
+
+            // Mevcut canvas'ı data URL olarak kaydet
+            const imageData = canvas.toDataURL();
+            canvasHistory[icerikIndex].push(imageData);
+
+            // Maksimum 20 adım sakla (hafıza için)
+            if (canvasHistory[icerikIndex].length > 20) {
+                canvasHistory[icerikIndex].shift();
+            }
+        }
+
+        // Geri al fonksiyonu
+        function geriAl() {
+            // Mevcut sayfanın içerik index'ini bul
+            const icerikIndex = Math.floor(mevcutSayfa / 2);
+
+            if (!canvasHistory[icerikIndex] || canvasHistory[icerikIndex].length === 0) {
+                return; // Geri alınacak bir şey yok
+            }
+
+            const canvas = document.getElementById(`canvas-${icerikIndex}`);
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+
+            // Son state'i kaldır
+            canvasHistory[icerikIndex].pop();
+
+            // Canvas'ı temizle
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Eğer geçmişte state varsa, son state'i yükle
+            if (canvasHistory[icerikIndex].length > 0) {
+                const lastState = canvasHistory[icerikIndex][canvasHistory[icerikIndex].length - 1];
+                const img = new Image();
+                img.onload = function () {
+                    ctx.drawImage(img, 0, 0);
+                };
+                img.src = lastState;
+            }
+
+            // İçeriği kaydet
+            icerikKaydet(icerikIndex, true);
+        }
+
+        function elYazisiBaslat(icerikIndex, canvasData = '') {
+            console.log('🖌️ elYazisiBaslat çağrıldı - Sayfa:', icerikIndex, '| Canvas data var mı:', canvasData ? 'EVET' : 'HAYIR');
+
+            const canvas = document.getElementById(`canvas-${icerikIndex}`);
+            if (!canvas) {
+                console.log('❌ Canvas elementi bulunamadı:', icerikIndex);
+                return;
+            }
+
             // Eğer zaten başlatılmışsa, sadece canvas verisini yükle
             if (canvasInitialized[icerikIndex]) {
+                console.log('♻️ Canvas zaten başlatılmış, data yükleniyor:', icerikIndex);
                 if (canvasData) {
                     const ctx = canvas.getContext('2d');
                     const img = new Image();
                     img.onload = function () {
+                        console.log('✅ Canvas data yüklendi:', icerikIndex);
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    };
+                    img.onerror = function () {
+                        console.log('❌ Canvas data yüklenemedi:', icerikIndex);
                     };
                     img.src = canvasData;
                 }
@@ -1384,21 +1586,41 @@
                     const rect = contentDiv.getBoundingClientRect();
                     const oldWidth = canvas.width;
                     const oldHeight = canvas.height;
-                    canvas.width = rect.width;
-                    canvas.height = rect.height;
+
+                    // Eğer boyut 0 ise, parent'tan al
+                    if (rect.width === 0 || rect.height === 0) {
+                        const parentRect = contentDiv.parentElement.getBoundingClientRect();
+                        canvas.width = parentRect.width || 750;  // Varsayılan genişlik
+                        canvas.height = parentRect.height * 0.6667 || 500;  // Varsayılan yükseklik (2/3)
+                        console.log('⚠️ Canvas boyutu 0, parent kullanıldı:', icerikIndex, canvas.width, 'x', canvas.height);
+                    } else {
+                        canvas.width = rect.width;
+                        canvas.height = rect.height;
+                    }
 
                     // Eğer canvas verisi varsa yükle
                     if (canvasData) {
+                        console.log('🎨 Canvas data yükleniyor (ilk başlatma):', icerikIndex, 'Canvas boyut:', canvas.width, 'x', canvas.height);
                         const img = new Image();
                         img.onload = function () {
+                            console.log('✅ Canvas image yüklendi:', icerikIndex);
                             ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                            // İlk state'i kaydet
+                            saveCanvasState(icerikIndex);
+                        };
+                        img.onerror = function () {
+                            console.log('❌ Canvas image yüklenemedi:', icerikIndex);
                         };
                         img.src = canvasData;
+                    } else {
+                        // Boş canvas'ın ilk state'ini kaydet
+                        console.log('📝 Boş canvas başlatıldı:', icerikIndex);
+                        saveCanvasState(icerikIndex);
                     }
 
                     // Canvas başlatıldı olarak işaretle
                     canvasInitialized[icerikIndex] = true;
-                }, 200);
+                }, 400);
             } else {
                 canvasInitialized[icerikIndex] = true;
             }
@@ -1407,7 +1629,7 @@
             function eventListenerEkle() {
                 // Çizim ayarları
                 ctx.strokeStyle = '#2C1810';
-                ctx.lineWidth = 2;
+                ctx.lineWidth = kalemKalinligi;
                 ctx.lineCap = 'round';
                 ctx.lineJoin = 'round';
 
@@ -1445,6 +1667,7 @@
                 canvas.addEventListener('mouseup', (e) => {
                     e.stopPropagation();
                     isDown = false;
+                    saveCanvasState(icerikIndex); // Çizim geçmişine kaydet
                     icerikKaydet(icerikIndex, true); // Canvas'tan kaydet
                 });
 
@@ -1486,6 +1709,7 @@
                     e.stopPropagation();
                     e.preventDefault();
                     isDown = false;
+                    saveCanvasState(icerikIndex); // Çizim geçmişine kaydet
                     icerikKaydet(icerikIndex, true); // Canvas'tan kaydet
                 });
             }

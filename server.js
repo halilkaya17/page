@@ -36,7 +36,6 @@ const pageSchema = new mongoose.Schema({
     sayfaNo: {
         type: Number,
         required: true,
-        unique: true,
         index: true
     },
     metin: {
@@ -87,31 +86,35 @@ app.get('/api/pages', async (req, res) => {
 // 2. Tek sayfa kaydet (Her sayfa ayrı document)
 app.post('/api/page/save', async (req, res) => {
     try {
-        const { sayfaNo, metin, foto, canvas, kaydedildi } = req.body;
+        const { pageId, metin, foto, canvas, kaydedildi } = req.body;
 
-        if (sayfaNo === undefined) {
-            return res.status(400).json({
-                success: false,
-                message: 'Sayfa numarası gerekli'
-            });
-        }
+        let sayfa;
 
-        // Sayfa var mı kontrol et
-        let sayfa = await Page.findOne({ sayfaNo });
+        if (pageId) {
+            // Mevcut sayfayı güncelle
+            sayfa = await Page.findById(pageId);
 
-        if (sayfa) {
-            // Güncelle
-            sayfa.metin = metin || '';
-            sayfa.foto = foto || '';
-            sayfa.canvas = canvas || '';
-            sayfa.kaydedildi = kaydedildi !== undefined ? kaydedildi : true;
-            await sayfa.save();
+            if (sayfa) {
+                sayfa.metin = metin || '';
+                sayfa.foto = foto || '';
+                sayfa.canvas = canvas || '';
+                sayfa.kaydedildi = kaydedildi !== undefined ? kaydedildi : true;
+                await sayfa.save();
 
-            console.log(`✅ Sayfa ${sayfaNo} güncellendi`);
+                console.log(`✅ Sayfa ${sayfa.sayfaNo} güncellendi (ID: ${pageId})`);
+            } else {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Sayfa bulunamadı'
+                });
+            }
         } else {
-            // Yeni oluştur
+            // Yeni sayfa oluştur - otomatik numara ver
+            const count = await Page.countDocuments();
+            const yeniSayfaNo = count;
+
             sayfa = new Page({
-                sayfaNo,
+                sayfaNo: yeniSayfaNo,
                 metin: metin || '',
                 foto: foto || '',
                 canvas: canvas || '',
@@ -119,7 +122,7 @@ app.post('/api/page/save', async (req, res) => {
             });
             await sayfa.save();
 
-            console.log(`✅ Yeni sayfa ${sayfaNo} oluşturuldu`);
+            console.log(`✅ Yeni sayfa oluşturuldu (Sayfa No: ${yeniSayfaNo})`);
         }
 
         res.json({
