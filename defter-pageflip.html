@@ -66,19 +66,11 @@
             align-items: center;
         }
 
-        .controls-center {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
         .controls-right {
             display: flex;
             gap: 10px;
             align-items: center;
+            margin-left: auto;
         }
 
         .btn {
@@ -659,17 +651,6 @@
 
     <div class="controls">
         <div class="controls-left">
-            <button class="btn" onclick="sayfaGeriGit()" title="Önceki Sayfa">
-                <i class="fas fa-chevron-left"></i>
-            </button>
-            <span class="page-info">
-                Sayfa: <span id="current-page">1</span> / <span id="total-pages">1</span>
-            </span>
-            <button class="btn" onclick="sayfaIleriGit()" title="Sonraki Sayfa">
-                <i class="fas fa-chevron-right"></i>
-            </button>
-        </div>
-        <div class="controls-center">
             <button class="btn btn-save-text" onclick="sayfaTemizle()" title="İçeriği Temizle">
                 Temizle
             </button>
@@ -933,35 +914,7 @@
             // Sayfa değiştiğinde
             pageFlip.on('flip', (e) => {
                 mevcutSayfa = e.data;
-                updatePageInfo();
             });
-
-            updatePageInfo();
-        }
-
-        // Sayfa bilgisini güncelle
-        function updatePageInfo() {
-            // Toplam sayfa sayısı: sadece içerik sayfaları (sol sayfalar sayılmaz)
-            const toplamSayfa = sayfalar.length;
-
-            // Mevcut sayfa numarası: sadece içerik sayfalarını say
-            const gosterilecekSayfa = Math.ceil((mevcutSayfa + 1) / 2);
-
-            document.getElementById('current-page').textContent = gosterilecekSayfa;
-            document.getElementById('total-pages').textContent = toplamSayfa;
-        }
-
-        // Sayfa navigasyon fonksiyonları
-        function sayfaGeriGit() {
-            if (pageFlip && mevcutSayfa > 0) {
-                pageFlip.flipPrev();
-            }
-        }
-
-        function sayfaIleriGit() {
-            if (pageFlip) {
-                pageFlip.flipNext();
-            }
         }
 
         // HTML karakterlerini escape et
