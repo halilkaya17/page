@@ -1,0 +1,1545 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sayfa Çeviren Defter - PageFlip.js</title>
+
+    <!-- Google Fonts - El Yazısı Fontu -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap" rel="stylesheet">
+
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Georgia', serif;
+            background: rgba(128, 128, 128, 0.8);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 30px 20px 90px 20px;
+            overflow-x: hidden;
+        }
+
+        .header {
+            text-align: center;
+            color: #333333;
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.3);
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.3);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            gap: 10px;
+        }
+
+        .controls-left {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .controls-center {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .controls-right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #4a4a4a;
+            color: #ffffff;
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 44px;
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .btn:hover:not(:disabled) {
+            background: #333333;
+            transform: scale(1.1);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: scale(0.95);
+        }
+
+        .btn-save-text {
+            width: auto !important;
+            padding: 12px 32px !important;
+            font-size: 16px;
+            font-weight: 600;
+            min-width: 120px;
+        }
+
+        .page-info {
+            font-size: 14px;
+            color: #333333;
+            padding: 0 15px;
+            font-weight: 600;
+        }
+
+        #book-container {
+            position: relative;
+            margin: 0 auto 30px auto;
+        }
+
+        #book {
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4),
+                0 15px 40px rgba(0, 0, 0, 0.3),
+                0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .page {
+            background: #ffffff;
+            padding: 40px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-left {
+            border-right: 5px solid #808080;
+            box-shadow: 5px 0 15px rgba(0, 0, 0, 0.4),
+                3px 0 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .page-right {
+            border-left: 5px solid #808080;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.4),
+                -3px 0 8px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Sayfa içeriği touch event'leri için */
+        .page-right-content {
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+
+        .photo-area {
+            pointer-events: auto;
+            touch-action: manipulation;
+        }
+
+        /* Sol sayfada logo */
+        .page-left .page-logo {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 350px;
+            height: auto;
+            z-index: 1;
+            pointer-events: none;
+        }
+
+
+        /* Sağ sayfa içerik container */
+        .page-right-content {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* Fotoğraf alanı - üst 1/3 */
+        .photo-area {
+            width: 100%;
+            height: 33.33%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .photo-circle {
+            width: 220px;
+            height: 270px;
+            border-radius: 0;
+            border: none;
+            overflow: visible;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            position: relative;
+            cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15),
+                0 4px 8px rgba(0, 0, 0, 0.12),
+                0 8px 16px rgba(0, 0, 0, 0.1),
+                0 16px 32px rgba(0, 0, 0, 0.08);
+            padding: 10px 10px 30px 10px;
+            transform: rotate(-1.5deg);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .photo-circle:hover {
+            transform: rotate(0deg) scale(1.03);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2),
+                0 8px 16px rgba(0, 0, 0, 0.15),
+                0 16px 32px rgba(0, 0, 0, 0.12),
+                0 24px 48px rgba(0, 0, 0, 0.1);
+        }
+
+        .photo-circle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .photo-circle::after {
+            content: '';
+            position: absolute;
+            bottom: 8px;
+            left: 10px;
+            right: 10px;
+            height: 1px;
+            background: linear-gradient(to right, transparent, rgba(0, 0, 0, 0.1), transparent);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        .photo-circle img {
+            width: 100%;
+            height: calc(100% - 20px);
+            object-fit: cover;
+            border-radius: 2px;
+            position: relative;
+            z-index: 0;
+        }
+
+        .photo-placeholder {
+            width: 100%;
+            height: calc(100% - 20px);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #233977;
+            font-size: 14px;
+            text-align: center;
+            position: relative;
+            z-index: 0;
+            background: #f5f5f5;
+            border-radius: 2px;
+        }
+
+        .photo-camera-icon {
+            font-size: 48px;
+            color: #233977;
+        }
+
+        /* Yazı alanı - alt 2/3 */
+        .page-content {
+            font-size: 16px;
+            line-height: 25px;
+            color: #2C1810;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            flex: 1;
+            position: relative;
+            z-index: 2;
+            height: 66.67%;
+            overflow-y: auto;
+            padding: 20px;
+            min-height: 200px;
+            touch-action: pan-y;
+            pointer-events: auto;
+        }
+
+        /* Düzenlenebilir içerik */
+        .page-content-editable {
+            outline: none;
+            border: none;
+            background: transparent;
+            width: 100%;
+            height: 100%;
+            font-family: 'Kalam', cursive;
+            font-size: 18px;
+            line-height: 28px;
+            color: #2C1810;
+            resize: none;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            user-select: text;
+        }
+
+        /* El yazısı canvas */
+        .handwriting-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: crosshair;
+            z-index: 3;
+            background: transparent;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+
+        /* Mod seçim butonları */
+        .edit-mode-buttons {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 5px;
+            z-index: 10;
+        }
+
+        .mode-btn {
+            padding: 5px 10px;
+            border: 1px solid #808080;
+            border-radius: 5px;
+            background: white;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: 'Segoe UI', sans-serif;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+            user-select: none;
+            pointer-events: auto;
+        }
+
+        .mode-btn.active {
+            background: #808080;
+            color: white;
+        }
+
+        .mode-btn:hover {
+            background: #999;
+            color: white;
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: 20px;
+            right: 40px;
+            font-size: 12px;
+            color: #888;
+            font-style: italic;
+            z-index: 2;
+        }
+
+        .edit-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .edit-modal.active {
+            display: flex;
+        }
+
+        /* Webcam modal */
+        .camera-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .camera-modal.active {
+            display: flex;
+        }
+
+        .camera-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: auto;
+            max-width: 700px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .camera-preview {
+            width: 100%;
+            max-width: 640px;
+            height: 480px;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            position: relative;
+        }
+
+        .camera-preview video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .camera-preview canvas {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        .camera-preview canvas.show {
+            display: block;
+        }
+
+        .countdown-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 10;
+        }
+
+        .countdown-overlay.active {
+            display: flex;
+        }
+
+        .countdown-number {
+            font-size: 120px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            animation: pulse 1s ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 1;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .camera-buttons {
+            display: flex;
+            gap: 15px;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .camera-buttons .btn {
+            min-width: 150px;
+            padding: 15px 30px;
+            font-size: 16px;
+            white-space: nowrap;
+        }
+
+        .edit-content {
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 1700px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .edit-content h2 {
+            margin-bottom: 20px;
+            color: #333333;
+        }
+
+        .edit-content textarea {
+            width: 100%;
+            height: 400px;
+            padding: 15px;
+            border: 2px solid #CCCCCC;
+            border-radius: 8px;
+            font-family: 'Georgia', serif;
+            font-size: 16px;
+            line-height: 25px;
+            resize: none;
+            background: #ffffff;
+        }
+
+        .edit-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+
+        .btn-cancel {
+            background: #999;
+            color: white;
+        }
+
+        .btn-cancel:hover {
+            background: #777;
+        }
+
+        .status-message {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 25px;
+            background: #228B22;
+            color: white;
+            border-radius: 8px;
+            font-family: 'Segoe UI', sans-serif;
+            display: none;
+            animation: slideIn 0.3s ease;
+            z-index: 2000;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .status-message.show {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="book-container">
+        <div id="book"></div>
+    </div>
+
+    <div class="controls">
+        <div class="controls-left">
+            <span class="page-info">
+                Sayfa: <span id="current-page">1</span> / <span id="total-pages">1</span>
+            </span>
+        </div>
+        <div class="controls-center">
+            <button class="btn btn-save-text" onclick="sayfaTemizle()" title="İçeriği Temizle">
+                Temizle
+            </button>
+            <button class="btn btn-save-text" onclick="kaydet()" title="Kaydet">
+                Kaydet
+            </button>
+        </div>
+        <div class="controls-right">
+            <button class="btn btn-keyboard" id="global-keyboard-btn" onclick="globalModDegistir('keyboard')"
+                title="Klavye Modu">
+                <i class="fas fa-keyboard"></i>
+            </button>
+            <button class="btn btn-handwriting" id="global-handwriting-btn" onclick="globalModDegistir('handwriting')"
+                title="El Yazısı Modu">
+                <i class="fas fa-pen"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Düzenleme Modal -->
+    <div class="edit-modal" id="editModal">
+        <div class="edit-content">
+            <h2>Sayfayı Düzenle</h2>
+            <textarea id="editTextarea" placeholder="Notlarınızı buraya yazın..."></textarea>
+            <div class="edit-buttons">
+                <button class="btn btn-cancel" onclick="duzenlemeyiKapat()">İptal</button>
+                <button class="btn btn-save" onclick="duzenlemeyiKaydet()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Webcam Modal -->
+    <div class="camera-modal" id="cameraModal">
+        <div class="camera-content">
+            <div class="camera-preview">
+                <video id="cameraVideo" autoplay></video>
+                <canvas id="cameraCanvas"></canvas>
+                <div class="countdown-overlay" id="countdownOverlay">
+                    <div class="countdown-number" id="countdownNumber">5</div>
+                </div>
+            </div>
+            <div class="camera-buttons" id="cameraButtons">
+                <button class="btn btn-cancel" onclick="kamerayiKapat()">İptal</button>
+                <button class="btn btn-save" onclick="zamanlayiciyiBaslat()"><i class="fas fa-camera"></i> Çek</button>
+            </div>
+            <div class="camera-buttons" id="previewButtons" style="display: none;">
+                <button class="btn btn-cancel" onclick="yenidenDene()">Yeniden Dene</button>
+                <button class="btn btn-save" onclick="fotografKullan()"><i class="fas fa-check"></i> Kullan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Durum Mesajı -->
+    <div class="status-message" id="statusMessage">✓ Kaydedildi!</div>
+
+    <!-- PageFlip.js Library -->
+    <script src="https://cdn.jsdelivr.net/npm/page-flip@2.0.7/dist/js/page-flip.browser.min.js"></script>
+
+    <script>
+        // Backend API Ayarları
+        const API_URL = 'http://localhost:3000/api';
+
+        let pageFlip;
+        let sayfalar = [];
+        let mevcutSayfa = 0;
+        let cameraStream = null;
+        let fotografCekilenSayfa = null;
+        let fotografCekilirkenSayfa = null; // Fotoğraf çekilirken hangi sayfadayız
+
+        // MongoDB'den sayfa verilerini yükle
+        async function verileriYukle() {
+            try {
+                const response = await fetch(`${API_URL}/pages`);
+                const result = await response.json();
+
+                if (result.success && result.data.length > 0) {
+                    // MongoDB'den sayfalar geldi
+                    sayfalar = result.data.map(page => ({
+                        metin: page.metin || '',
+                        foto: page.foto || '',
+                        canvas: page.canvas || '',
+                        kaydedildi: page.kaydedildi || false
+                    }));
+
+                    // Yeni boş sayfa ekle (3. sayfa)
+                    sayfalar.push({
+                        metin: '',
+                        foto: '',
+                        canvas: '',
+                        kaydedildi: false
+                    });
+
+                    console.log(`✅ ${sayfalar.length - 1} sayfa MongoDB'den yüklendi, yeni boş sayfa eklendi`);
+                } else {
+                    // Hiç sayfa yok, varsayılan ekle
+                    sayfalar = [
+                        {
+                            metin: '',
+                            foto: '',
+                            canvas: '',
+                            kaydedildi: false
+                        }
+                    ];
+                    console.log('📄 Yeni defter başlatıldı');
+                }
+            } catch (error) {
+                console.error('⚠️ MongoDB\'den yükleme hatası:', error);
+                // Hata durumunda boş sayfa
+                sayfalar = [
+                    {
+                        metin: '',
+                        foto: '',
+                        canvas: '',
+                        kaydedildi: false
+                    }
+                ];
+                mesajGoster('⚠️ Sunucuya bağlanılamadı!');
+            }
+        }
+
+        // Defteri oluştur
+        function defteriOlustur(baslangicSayfasi = null) {
+            const bookContainer = document.getElementById('book');
+            bookContainer.innerHTML = '';
+
+            // Canvas başlatma durumunu temizle (yeni sayfalar oluşturuluyor)
+            Object.keys(canvasInitialized).forEach(key => {
+                delete canvasInitialized[key];
+            });
+
+            // Sayfaları HTML olarak ekle
+            // Her içerik için 2 sayfa oluştur: sol (logo) + sağ (içerik)
+            sayfalar.forEach((icerik, icerikIndex) => {
+                // Sol sayfa (logo) - PageFlip index: icerikIndex * 2
+                const solSayfaDiv = document.createElement('div');
+                solSayfaDiv.className = 'page page-left';
+                solSayfaDiv.innerHTML = `
+                    <img src="esaslogo.png" alt="ESAS Logo" class="page-logo">
+                `;
+                bookContainer.appendChild(solSayfaDiv);
+
+                // Sağ sayfa (içerik) - PageFlip index: icerikIndex * 2 + 1
+                const sagSayfaDiv = document.createElement('div');
+                sagSayfaDiv.className = 'page page-right';
+
+                // İçerik string veya obje olabilir (geriye dönük uyumluluk)
+                let sayfaMetni = '';
+                let sayfaFotografi = '';
+                let sayfaCanvas = '';
+
+                if (typeof icerik === 'object' && icerik !== null) {
+                    sayfaMetni = icerik.metin || '';
+                    sayfaFotografi = icerik.foto || '';
+                    sayfaCanvas = icerik.canvas || '';
+                    if (sayfaFotografi) {
+                        console.log('Sayfa oluşturuluyor - içerik index:', icerikIndex, 'Fotoğraf var, uzunluk:', sayfaFotografi.length);
+                    }
+                } else {
+                    sayfaMetni = icerik || '';
+                }
+
+                const sayfaNumarasi = icerikIndex + 1;
+                const fotoHtml = sayfaFotografi
+                    ? `<img src="${sayfaFotografi}" alt="Fotoğraf">`
+                    : `<div class="photo-placeholder"><div class="photo-camera-icon"><i class="fas fa-camera"></i></div><div>Fotoğraf çek</div></div>`;
+
+                sagSayfaDiv.innerHTML = `
+                    <div class="page-right-content">
+                        <div class="photo-area">
+                            <div class="photo-circle" onclick="fotografCek(${icerikIndex}, event)" ontouchstart="fotografCek(${icerikIndex}, event)">
+                                ${fotoHtml}
+                            </div>
+                        </div>
+                        <div class="page-content" id="content-${icerikIndex}">
+                            <textarea class="page-content-editable" id="text-${icerikIndex}" onblur="icerikKaydet(${icerikIndex})">${escapeHtml(sayfaMetni)}</textarea>
+                            <canvas class="handwriting-canvas" id="canvas-${icerikIndex}" style="display: none;"></canvas>
+                        </div>
+                    </div>
+                    <div class="page-number">${sayfaNumarasi}</div>
+                `;
+                bookContainer.appendChild(sagSayfaDiv);
+
+                // Canvas'ı başlat ve varsa canvas verisini yükle
+                setTimeout(() => {
+                    elYazisiBaslat(icerikIndex, sayfaCanvas);
+
+                    // Textarea'ya touch event ekle (mobil için)
+                    const textEl = document.getElementById(`text-${icerikIndex}`);
+                    if (textEl) {
+                        textEl.addEventListener('touchstart', function (e) {
+                            e.stopPropagation();
+                            this.focus();
+                        }, { passive: true });
+                    }
+                }, 100);
+            });
+
+            // PageFlip'i başlat (2 sayfa yan yana)
+            pageFlip = new St.PageFlip(bookContainer, {
+                width: 800,  // Tek sayfa genişliği (büyütüldü)
+                height: 800, // Sayfa yüksekliği (büyütüldü)
+                size: 'fixed',
+                minWidth: 315,
+                maxWidth: 1200,
+                minHeight: 400,
+                maxHeight: 1800,
+                maxShadowOpacity: 0.5,
+                showCover: false,
+                useMouseEvents: false,
+                mobileScrollSupport: false,
+                usePortrait: false,  // 2 sayfa yan yana göster
+                disableFlipByClick: true,  // Tıklama ile sayfa çevirmeyi kapat
+                clickEventForward: true   // Tıklama eventlerini sayfa içeriğine ilet (mobil için)
+            });
+
+            pageFlip.loadFromHTML(document.querySelectorAll('.page'));
+
+            // Başlangıç sayfasını ayarla
+            if (baslangicSayfasi !== null && baslangicSayfasi >= 0) {
+                mevcutSayfa = baslangicSayfasi;
+                pageFlip.flip(baslangicSayfasi);
+            }
+
+            // Sayfa değiştiğinde
+            pageFlip.on('flip', (e) => {
+                mevcutSayfa = e.data;
+                updatePageInfo();
+            });
+
+            updatePageInfo();
+        }
+
+        // Sayfa bilgisini güncelle
+        function updatePageInfo() {
+            // Toplam sayfa sayısı: sadece içerik sayfaları (sol sayfalar sayılmaz)
+            const toplamSayfa = sayfalar.length;
+
+            // Mevcut sayfa numarası: sadece içerik sayfalarını say
+            const gosterilecekSayfa = Math.ceil((mevcutSayfa + 1) / 2);
+
+            document.getElementById('current-page').textContent = gosterilecekSayfa;
+            document.getElementById('total-pages').textContent = toplamSayfa;
+        }
+
+        // HTML karakterlerini escape et
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Sayfa düzenle
+        function sayfaDuzenle() {
+            // Sol sayfalar düzenlenemez (çift indexler: 0, 2, 4...)
+            if (mevcutSayfa % 2 !== 0) {
+                return;
+            }
+            // İçerik sayfasını bul (tek indexler: 1, 3, 5...)
+            const icerikIndex = Math.floor(mevcutSayfa / 2);
+
+            // İçerik string veya obje olabilir
+            let metin = '';
+            if (typeof sayfalar[icerikIndex] === 'object' && sayfalar[icerikIndex] !== null) {
+                metin = sayfalar[icerikIndex].metin || '';
+            } else {
+                metin = sayfalar[icerikIndex] || '';
+            }
+
+            document.getElementById('editTextarea').value = metin;
+            document.getElementById('editModal').classList.add('active');
+        }
+
+        // Sayfa sil
+        // Sayfa temizle (içeriği sil, sayfa kalır)
+        function sayfaTemizle() {
+            // Sol sayfalar temizlenemez (çift indexler: 0, 2, 4...)
+            if (mevcutSayfa % 2 !== 0) {
+                return;
+            }
+
+            // İçerik sayfasını bul (tek indexler: 1, 3, 5...)
+            const icerikIndex = Math.floor(mevcutSayfa / 2);
+
+            if (confirm('Bu sayfanın içeriğini temizlemek istediğinizden emin misiniz?')) {
+                // İçeriği temizle
+                sayfalar[icerikIndex] = {
+                    metin: '',
+                    foto: '',
+                    canvas: '',
+                    kaydedildi: false
+                };
+
+                // Kaydet ve defteri yeniden oluştur
+                kaydetIsleminiYap(false, false); // Sessiz kaydet, durum değiştirme
+                defteriOlustur(mevcutSayfa);
+            }
+        }
+
+        function sayfaSil() {
+            // Sol sayfalar silinemez (çift indexler: 0, 2, 4...)
+            if (mevcutSayfa % 2 !== 0) {
+                return;
+            }
+
+            // İçerik sayfasını bul (tek indexler: 1, 3, 5...)
+            const icerikIndex = Math.floor(mevcutSayfa / 2);
+
+            if (sayfalar.length === 1) {
+                return;
+            }
+
+            if (confirm('Bu sayfayı silmek istediğinizden emin misiniz?')) {
+                const silinmedenOncekiSayfa = mevcutSayfa;
+                sayfalar.splice(icerikIndex, 1);
+
+                // Mevcut sayfa numarasını ayarla
+                let yeniSayfa = silinmedenOncekiSayfa;
+                if (mevcutSayfa >= sayfalar.length * 2) {
+                    yeniSayfa = sayfalar.length * 2 - 1;
+                }
+
+                kaydetIsleminiYap(false, false); // Sessiz kaydet, durum değiştirme
+                defteriOlustur(yeniSayfa);
+            }
+        }
+
+        // Düzenlemeyi kapat
+        function duzenlemeyiKapat() {
+            document.getElementById('editModal').classList.remove('active');
+        }
+
+        // Düzenlemeyi kaydet
+        function duzenlemeyiKaydet() {
+            const yeniMetin = document.getElementById('editTextarea').value;
+            // İçerik sayfasını bul (tek indexler: 1, 3, 5...)
+            const icerikIndex = Math.floor(mevcutSayfa / 2);
+
+            // Fotoğrafı koru, sadece metni güncelle
+            if (typeof sayfalar[icerikIndex] === 'object' && sayfalar[icerikIndex] !== null) {
+                sayfalar[icerikIndex].metin = yeniMetin;
+            } else {
+                // Eski format string ise objeye çevir (fotoğraf yok)
+                sayfalar[icerikIndex] = {
+                    metin: yeniMetin,
+                    foto: ''
+                };
+            }
+
+            kaydetIsleminiYap(false, false); // Sessiz kaydet, durum değiştirme
+            duzenlemeyiKapat();
+
+            const duzenlemeOncekiSayfa = mevcutSayfa;
+            defteriOlustur(duzenlemeOncekiSayfa);
+
+        }
+
+        // Kaydet
+        function kaydet(mesajGosterme = true, durumDegistir = true) {
+            // Eğer mesaj gösterilecekse (kullanıcı kaydet butonuna bastıysa), onay iste
+            if (mesajGosterme && durumDegistir) {
+                if (confirm('Bu sayfayı kaydetmek istediğinize emin misiniz?')) {
+                    // Sayfayı kaydet
+                    kaydetVeYeniSayfaAc();
+                }
+            } else {
+                // Otomatik kayıtlar için (mesajGosterme=false), direkt kaydet
+                kaydetIsleminiYap(mesajGosterme, durumDegistir);
+            }
+        }
+
+        // Kaydet ve yeni sayfa aç
+        async function kaydetVeYeniSayfaAc() {
+            // Mevcut sayfayı kaydet
+            const icerikIndex = Math.floor(mevcutSayfa / 2);
+
+            if (!sayfalar[icerikIndex]) {
+                mesajGoster('⚠️ Geçerli bir sayfa bulunamadı!');
+                return;
+            }
+
+            // Kaydedildi olarak işaretle
+            sayfalar[icerikIndex].kaydedildi = true;
+
+            try {
+                // MongoDB'ye bu sayfayı ayrı bir document olarak kaydet
+
+                const sayfaData = sayfalar[icerikIndex];
+
+                const response = await fetch(`${API_URL}/page/save`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        sayfaNo: icerikIndex,
+                        metin: sayfaData.metin || '',
+                        foto: sayfaData.foto || '',
+                        canvas: sayfaData.canvas || '',
+                        kaydedildi: true
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    mesajGoster('Başarıyla Kaydedildi!');
+
+                    // Yeni boş sayfa oluştur
+                    sayfalar.push({
+                        metin: '',
+                        foto: '',
+                        canvas: '',
+                        kaydedildi: false
+                    });
+
+                    // Mevcut sayfanın PageFlip index'ini kaydet
+                    const kaydedilenSayfaIndex = mevcutSayfa;
+
+                    // Defteri yeniden oluştur (mevcut sayfadan)
+                    defteriOlustur(kaydedilenSayfaIndex);
+
+                    // Kaydedilen sayfadan yeni sayfaya geç
+                    setTimeout(() => {
+                        pageFlip.flipNext();
+                    }, 200);
+                } else {
+                    console.error('❌ MongoDB kayıt hatası:', result.message);
+                }
+
+            } catch (e) {
+                console.error('Kaydetme hatası:', e);
+            }
+        }
+
+        // Kayıt işlemini yap (artık kullanılmıyor - MongoDB'ye otomatik kaydediliyor)
+        function kaydetIsleminiYap(mesajGosterme = true, durumDegistir = true) {
+            // Bu fonksiyon artık localStorage kullanmıyor
+            // Tüm kayıtlar MongoDB'ye yapılıyor
+            console.log('Not: Veriler MongoDB\'ye kaydediliyor');
+        }
+
+        // Sonraki sayfa (yeni sayfa oluştur ve git)
+        function sonrakiSayfa() {
+            // Mevcut sayfanın içerik indexi
+            const mevcutIcerikIndex = Math.floor(mevcutSayfa / 2);
+
+            // Eğer mevcut sayfa kaydedilmemişse hiçbir şey yapma
+            if (!sayfalar[mevcutIcerikIndex]?.kaydedildi) {
+                return;
+            }
+
+            // Yeni boş sayfa oluştur
+            sayfalar.push({
+                metin: '',
+                foto: '',
+                canvas: '',
+                kaydedildi: false
+            });
+
+            // Defteri yeniden oluştur
+            kaydetIsleminiYap(false, false); // Sessiz kaydet, durum değiştirme
+            defteriOlustur();
+
+            // Son sayfaya git (yeni oluşturulan sayfa)
+            setTimeout(() => {
+                pageFlip.flip(sayfalar.length * 2 - 1);
+            }, 100);
+        }
+
+        // Mesaj göster
+        function mesajGoster(mesaj) {
+            const statusEl = document.getElementById('statusMessage');
+            statusEl.textContent = mesaj;
+            statusEl.classList.add('show');
+            setTimeout(() => {
+                statusEl.classList.remove('show');
+            }, 2000);
+        }
+
+        // Klavye kısayolları devre dışı (sadece butonlarla kontrol)
+        // document.addEventListener('keydown', function (e) {
+        //     if (document.getElementById('editModal').classList.contains('active')) {
+        //         return;
+        //     }
+        //     if (e.key === 'ArrowLeft') {
+        //         oncekiSayfa();
+        //     } else if (e.key === 'ArrowRight') {
+        //         sonrakiSayfa();
+        //     }
+        // });
+
+        // Modal dışına tıklandığında kapat
+        document.getElementById('editModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                duzenlemeyiKapat();
+            }
+        });
+
+        document.getElementById('cameraModal').addEventListener('click', function (e) {
+            if (e.target === this) {
+                kamerayiKapat();
+            }
+        });
+
+        // Fotoğraf çek
+        function fotografCek(sayfaIndex, event) {
+            // Event propagation'ı durdur (PageFlip'in sayfa çevirmesini engelle)
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+
+            fotografCekilenSayfa = sayfaIndex;
+            // Mevcut sayfa numarasını kaydet (fotoğraf çekilirken hangi sayfadayız)
+            fotografCekilirkenSayfa = mevcutSayfa;
+
+            const modal = document.getElementById('cameraModal');
+            const video = document.getElementById('cameraVideo');
+
+            modal.classList.add('active');
+
+            // Webcam'i aç
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+                .then(function (stream) {
+                    cameraStream = stream;
+                    video.srcObject = stream;
+                })
+                .catch(function (err) {
+                    console.error('Kamera erişim hatası:', err);
+                    mesajGoster('⚠️ Kamera erişilemedi!');
+                    kamerayiKapat();
+                });
+        }
+
+        // Kamerayı kapat
+        function kamerayiKapat() {
+            const modal = document.getElementById('cameraModal');
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('cameraCanvas');
+            const countdownOverlay = document.getElementById('countdownOverlay');
+            const cameraButtons = document.getElementById('cameraButtons');
+            const previewButtons = document.getElementById('previewButtons');
+
+            modal.classList.remove('active');
+
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+                cameraStream = null;
+            }
+
+            if (video.srcObject) {
+                video.srcObject = null;
+            }
+
+            // UI sıfırla
+            video.style.display = 'block';
+            canvas.classList.remove('show');
+            countdownOverlay.classList.remove('active');
+            cameraButtons.style.display = 'flex';
+            previewButtons.style.display = 'none';
+
+            // Zamanlayıcıyı temizle
+            if (window.countdownTimer) {
+                clearInterval(window.countdownTimer);
+                window.countdownTimer = null;
+            }
+
+            // Sadece fotoğraf çekilmediyse temizle
+            if (fotografCekilenSayfa === null) {
+                fotografCekilirkenSayfa = null;
+            }
+        }
+
+        // Zamanlayıcıyı başlat
+        function zamanlayiciyiBaslat() {
+            let countdown = 5;
+            const countdownOverlay = document.getElementById('countdownOverlay');
+            const countdownNumber = document.getElementById('countdownNumber');
+
+            countdownOverlay.classList.add('active');
+            countdownNumber.textContent = countdown;
+
+            window.countdownTimer = setInterval(() => {
+                countdown--;
+                if (countdown > 0) {
+                    countdownNumber.textContent = countdown;
+                    // Animasyonu yeniden tetikle
+                    countdownNumber.style.animation = 'none';
+                    setTimeout(() => {
+                        countdownNumber.style.animation = 'pulse 1s ease-in-out';
+                    }, 10);
+                } else {
+                    clearInterval(window.countdownTimer);
+                    window.countdownTimer = null;
+                    countdownOverlay.classList.remove('active');
+                    fotografCekmeIslemi();
+                }
+            }, 1000);
+        }
+
+        // Fotoğraf çekme işlemi (zamanlayıcı bitince)
+        function fotografCekmeIslemi() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('cameraCanvas');
+            const ctx = canvas.getContext('2d');
+
+            // Canvas boyutunu video boyutuna ayarla
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            // Video'dan fotoğraf çek
+            ctx.drawImage(video, 0, 0);
+
+            // Video'yu gizle, canvas'ı göster
+            video.style.display = 'none';
+            canvas.classList.add('show');
+
+            // Butonları değiştir
+            document.getElementById('cameraButtons').style.display = 'none';
+            document.getElementById('previewButtons').style.display = 'flex';
+        }
+
+        // Yeniden dene
+        function yenidenDene() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('cameraCanvas');
+
+            // Video'yu göster, canvas'ı gizle
+            video.style.display = 'block';
+            canvas.classList.remove('show');
+
+            // Butonları değiştir
+            document.getElementById('cameraButtons').style.display = 'flex';
+            document.getElementById('previewButtons').style.display = 'none';
+        }
+
+        // Fotoğrafı kullan
+        function fotografKullan() {
+            const canvas = document.getElementById('cameraCanvas');
+            const fotoData = canvas.toDataURL('image/jpeg', 0.8);
+
+            // Sayfaya kaydet
+            if (fotografCekilenSayfa !== null) {
+                console.log('Fotoğraf kaydediliyor - içerik index:', fotografCekilenSayfa);
+
+                // Sayfa verisini güncelle
+                if (typeof sayfalar[fotografCekilenSayfa] === 'object' && sayfalar[fotografCekilenSayfa] !== null) {
+                    sayfalar[fotografCekilenSayfa].foto = fotoData;
+                } else {
+                    sayfalar[fotografCekilenSayfa] = {
+                        metin: sayfalar[fotografCekilenSayfa] || '',
+                        foto: fotoData,
+                        canvas: ''
+                    };
+                }
+
+                // Kamerayı önce kapat
+                kamerayiKapat();
+
+                // Fotoğraf çekilirken kaydedilen sayfa numarasını al
+                const geriDonulecekSayfa = fotografCekilirkenSayfa !== null ? fotografCekilirkenSayfa : mevcutSayfa;
+
+                // Defteri yeniden oluştur ve başlangıç sayfasını ayarla
+                defteriOlustur(geriDonulecekSayfa);
+
+                // Değişkenleri temizle
+                fotografCekilirkenSayfa = null;
+                fotografCekilenSayfa = null;
+            }
+        }
+
+        // Eski fotografCekildi() fonksiyonu kaldırıldı - Artık zamanlayıcılı sistem kullanılıyor
+
+        // Sayfa yüklendiğinde başlat
+        window.addEventListener('DOMContentLoaded', async function () {
+            await verileriYukle(); // MongoDB'den yükle
+
+            // Son sayfaya (boş sayfa) git
+            const sonSayfaIndex = sayfalar.length - 1;
+            const sonSayfaPageFlipIndex = sonSayfaIndex * 2 + 1; // Sağ sayfa
+
+            defteriOlustur(sonSayfaPageFlipIndex); // Son sayfadan aç
+        });
+
+        // Global mod değiştir (alt butonlardan)
+        function globalModDegistir(mod) {
+            // Mevcut sayfanın içerik index'ini bul
+            const icerikIndex = Math.floor(mevcutSayfa / 2);
+
+            // Eğer sol sayfadaysa (çift index), sağ sayfaya geç
+            if (mevcutSayfa % 2 !== 0) {
+                return;
+            }
+
+            // Mod değiştir
+            modDegistir(icerikIndex, mod);
+
+            // Global butonları güncelle
+            const globalKeyboardBtn = document.getElementById('global-keyboard-btn');
+            const globalHandwritingBtn = document.getElementById('global-handwriting-btn');
+
+            if (mod === 'keyboard') {
+                globalKeyboardBtn.style.background = '#333333';
+                globalHandwritingBtn.style.background = '#4a4a4a';
+            } else {
+                globalKeyboardBtn.style.background = '#4a4a4a';
+                globalHandwritingBtn.style.background = '#333333';
+            }
+        }
+
+        // Mod değiştir (klavye/el yazısı)
+        function modDegistir(icerikIndex, mod, event) {
+            // Event propagation'ı durdur (PageFlip'in sayfa çevirmesini engelle)
+            if (event) {
+                event.stopPropagation();
+                event.preventDefault();
+            }
+
+            const textEl = document.getElementById(`text-${icerikIndex}`);
+            const canvasEl = document.getElementById(`canvas-${icerikIndex}`);
+
+            // Global butonları güncelle
+            const globalKeyboardBtn = document.getElementById('global-keyboard-btn');
+            const globalHandwritingBtn = document.getElementById('global-handwriting-btn');
+
+            if (mod === 'keyboard') {
+                // Klavye modu
+                textEl.style.display = 'block';
+                canvasEl.style.display = 'none';
+                if (globalKeyboardBtn) globalKeyboardBtn.style.background = '#333333';
+                if (globalHandwritingBtn) globalHandwritingBtn.style.background = '#4a4a4a';
+                setTimeout(() => textEl.focus(), 100);
+            } else {
+                // El yazısı modu
+                textEl.style.display = 'none';
+                canvasEl.style.display = 'block';
+                if (globalKeyboardBtn) globalKeyboardBtn.style.background = '#4a4a4a';
+                if (globalHandwritingBtn) globalHandwritingBtn.style.background = '#333333';
+
+                // Canvas verisini al
+                let canvasData = '';
+                if (typeof sayfalar[icerikIndex] === 'object' && sayfalar[icerikIndex] !== null) {
+                    canvasData = sayfalar[icerikIndex].canvas || '';
+                }
+
+                elYazisiBaslat(icerikIndex, canvasData);
+            }
+        }
+
+        // El yazısı başlat
+        const canvasContexts = {};
+        const isDrawing = {};
+        const canvasInitialized = {}; // Canvas'ın başlatılıp başlatılmadığını takip et
+
+        function elYazisiBaslat(icerikIndex, canvasData = '') {
+            const canvas = document.getElementById(`canvas-${icerikIndex}`);
+            if (!canvas) return;
+
+            // Eğer zaten başlatılmışsa, sadece canvas verisini yükle
+            if (canvasInitialized[icerikIndex]) {
+                if (canvasData) {
+                    const ctx = canvas.getContext('2d');
+                    const img = new Image();
+                    img.onload = function () {
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    };
+                    img.src = canvasData;
+                }
+                return;
+            }
+
+            const ctx = canvas.getContext('2d');
+            canvasContexts[icerikIndex] = ctx;
+
+            // Canvas boyutunu ayarla
+            const contentDiv = document.getElementById(`content-${icerikIndex}`);
+            if (contentDiv) {
+                // Sayfa render edildikten sonra boyutu al
+                setTimeout(() => {
+                    const rect = contentDiv.getBoundingClientRect();
+                    const oldWidth = canvas.width;
+                    const oldHeight = canvas.height;
+                    canvas.width = rect.width;
+                    canvas.height = rect.height;
+
+                    // Eğer canvas verisi varsa yükle
+                    if (canvasData) {
+                        const img = new Image();
+                        img.onload = function () {
+                            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        };
+                        img.src = canvasData;
+                    }
+
+                    // Canvas başlatıldı olarak işaretle
+                    canvasInitialized[icerikIndex] = true;
+                }, 200);
+            } else {
+                canvasInitialized[icerikIndex] = true;
+            }
+
+            // Event listener'ları ekle (canvas boyutu ayarlandıktan sonra)
+            function eventListenerEkle() {
+                // Çizim ayarları
+                ctx.strokeStyle = '#2C1810';
+                ctx.lineWidth = 2;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+
+                let isDown = false;
+                let lastX = 0;
+                let lastY = 0;
+
+                // Mouse events
+                canvas.addEventListener('mousedown', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    isDown = true;
+                    const rect = canvas.getBoundingClientRect();
+                    lastX = e.clientX - rect.left;
+                    lastY = e.clientY - rect.top;
+                });
+
+                canvas.addEventListener('mousemove', (e) => {
+                    if (!isDown) return;
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const rect = canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+
+                    lastX = x;
+                    lastY = y;
+                });
+
+                canvas.addEventListener('mouseup', (e) => {
+                    e.stopPropagation();
+                    isDown = false;
+                    icerikKaydet(icerikIndex, true); // Canvas'tan kaydet
+                });
+
+                canvas.addEventListener('mouseleave', (e) => {
+                    e.stopPropagation();
+                    isDown = false;
+                });
+
+                // Touch events (mobil için)
+                canvas.addEventListener('touchstart', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    isDown = true;
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    lastX = touch.clientX - rect.left;
+                    lastY = touch.clientY - rect.top;
+                });
+
+                canvas.addEventListener('touchmove', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    if (!isDown) return;
+                    const rect = canvas.getBoundingClientRect();
+                    const touch = e.touches[0];
+                    const x = touch.clientX - rect.left;
+                    const y = touch.clientY - rect.top;
+
+                    ctx.beginPath();
+                    ctx.moveTo(lastX, lastY);
+                    ctx.lineTo(x, y);
+                    ctx.stroke();
+
+                    lastX = x;
+                    lastY = y;
+                });
+
+                canvas.addEventListener('touchend', (e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    isDown = false;
+                    icerikKaydet(icerikIndex, true); // Canvas'tan kaydet
+                });
+            }
+
+            // Canvas boyutu ayarlandıktan sonra event listener'ları ekle
+            if (contentDiv) {
+                // setTimeout içinde event listener'ları ekle
+                setTimeout(() => {
+                    eventListenerEkle();
+                }, 250);
+            } else {
+                eventListenerEkle();
+            }
+        }
+
+        // İçerik kaydet
+        function icerikKaydet(icerikIndex, canvasMode = false) {
+            if (canvasMode) {
+                // Canvas'tan kaydet
+                const canvas = document.getElementById(`canvas-${icerikIndex}`);
+                if (canvas) {
+                    const canvasData = canvas.toDataURL('image/png');
+                    // Canvas verisini sayfaya kaydet
+                    if (typeof sayfalar[icerikIndex] === 'object' && sayfalar[icerikIndex] !== null) {
+                        sayfalar[icerikIndex].canvas = canvasData;
+                    } else {
+                        sayfalar[icerikIndex] = {
+                            metin: sayfalar[icerikIndex] || '',
+                            foto: '',
+                            canvas: canvasData
+                        };
+                    }
+                    kaydetIsleminiYap(false, false); // Sessiz kaydet, durum değiştirme
+                }
+            } else {
+                // Textarea'dan kaydet
+                const textEl = document.getElementById(`text-${icerikIndex}`);
+                if (textEl) {
+                    const yeniMetin = textEl.value;
+                    if (typeof sayfalar[icerikIndex] === 'object' && sayfalar[icerikIndex] !== null) {
+                        sayfalar[icerikIndex].metin = yeniMetin;
+                    } else {
+                        sayfalar[icerikIndex] = {
+                            metin: yeniMetin,
+                            foto: ''
+                        };
+                    }
+                    kaydetIsleminiYap(false, false); // Sessiz kaydet, durum değiştirme
+                }
+            }
+        }
+
+        // Otomatik kayıt kaldırıldı - Tüm veriler MongoDB'ye kaydediliyor
+    </script>
+</body>
+
+</html>
