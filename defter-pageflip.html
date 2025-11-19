@@ -652,13 +652,19 @@
 
     <div class="controls">
         <div class="controls-left">
+            <button class="btn" onclick="sayfaGeriGit()" title="Önceki Sayfa">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+            <button class="btn" onclick="sayfaIleriGit()" title="Sonraki Sayfa">
+                <i class="fas fa-chevron-right"></i>
+            </button>
             <button class="btn btn-save-text" onclick="sayfaTemizle()" title="İçeriği Temizle">
                 Temizle
             </button>
             <button class="btn btn-save-text" onclick="kaydet()" title="Kaydet">
                 Kaydet
             </button>
-            <button class="btn" onclick="pdfIndir()" title="PDF İndir" style="display: none;">
+            <button class="btn" onclick="pdfIndir()" title="PDF İndir">
                 <i class="fas fa-file-pdf"></i>
             </button>
         </div>
@@ -919,6 +925,19 @@
             pageFlip.on('flip', (e) => {
                 mevcutSayfa = e.data;
             });
+        }
+
+        // Sayfa navigasyon fonksiyonları
+        function sayfaGeriGit() {
+            if (pageFlip && mevcutSayfa > 0) {
+                pageFlip.flipPrev();
+            }
+        }
+
+        function sayfaIleriGit() {
+            if (pageFlip) {
+                pageFlip.flipNext();
+            }
         }
 
         // HTML karakterlerini escape et

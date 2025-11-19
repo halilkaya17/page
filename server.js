@@ -93,7 +93,7 @@ app.post('/api/page/save', async (req, res) => {
         if (pageId) {
             // Mevcut sayfayı güncelle
             sayfa = await Page.findById(pageId);
-
+            
             if (sayfa) {
                 sayfa.metin = metin || '';
                 sayfa.foto = foto || '';
@@ -109,9 +109,8 @@ app.post('/api/page/save', async (req, res) => {
                 });
             }
         } else {
-            // Yeni sayfa oluştur - otomatik numara ver
-            const count = await Page.countDocuments();
-            const yeniSayfaNo = count;
+            // Yeni sayfa oluştur - timestamp bazlı unique sayfaNo
+            const yeniSayfaNo = Date.now(); // Milisaniye cinsinden timestamp (her zaman unique)
 
             sayfa = new Page({
                 sayfaNo: yeniSayfaNo,
